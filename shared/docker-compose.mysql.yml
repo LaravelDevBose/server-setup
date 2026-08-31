@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: common-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --local-infile=1
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      bcs-net:
+        aliases:
+          - common-mysql
+    # No ports section here! Ports 3306 are hidden from the internet.
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  bcs-net:
+    external: true
+
+volumes:
+  mysql_data:
+    driver: local
