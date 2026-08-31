@@ -37,10 +37,7 @@ services:
     <<: *mailu-common
     image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}nginx:${MAILU_VERSION}
     ports:
-      # Web UI: loopback only — host nginx reverse-proxies to it.
-      - "127.0.0.1:${FRONT_HTTP_PORT}:80"
-      - "127.0.0.1:${FRONT_HTTPS_PORT}:443"
-      # Mail protocols: published on the public bind address.
+      # Mail protocols: Traefik cannot proxy these — bind directly.
       - "${BIND_ADDRESS4}:${SMTP_PORT}:25"
       - "${BIND_ADDRESS4}:${SUBMISSIONS_PORT}:465"
       - "${BIND_ADDRESS4}:${SUBMISSION_PORT}:587"
@@ -53,6 +50,14 @@ services:
       - default
       - webmail
       - radicale
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.mailu.rule=Host(`${MAIL_HOSTNAME}`)"
+      - "traefik.http.routers.mailu.entrypoints=websecure"
+      - "traefik.http.routers.mailu.tls.certresolver=myresolver"
+      - "traefik.http.services.mailu.loadbalancer.server.port=80"
 
   admin:
     <<: *mailu-common
@@ -202,4 +207,6 @@ networks:
     driver: bridge
     internal: true
   bcs-net:
+    external: true
+  proxy:
     external: true

@@ -33,7 +33,7 @@ SUBMISSIONS = int(os.getenv("SUBMISSIONS_PORT", "4465"))
 SENDER = os.getenv("SENDER", "info@a.test")
 PASSWORD = os.getenv("PASSWORD", "Passw0rd!23")
 RCPT = os.getenv("RCPT", "abc@b.test")
-API_BASE = os.getenv("API_BASE", "https://127.0.0.1:8443").rstrip("/")
+API_BASE = os.getenv("API_BASE", f"https://{os.getenv('MAIL_HOST', 'localhost')}").rstrip("/")
 
 
 def _api_token():

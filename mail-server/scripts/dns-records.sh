@@ -7,7 +7,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-BASE="${BASE_URL:-https://localhost:8443}"
+MAIL_HOST=$(grep '^MAIL_HOSTNAME=' .env 2>/dev/null | cut -d= -f2)
+BASE="${BASE_URL:-https://${MAIL_HOST:-mail.example.com}}"
 TOKEN=$(grep '^API_TOKEN=' mailu.env | cut -d= -f2)
 
 fetch() { curl -sk -H "Authorization: $TOKEN" "$BASE/api/v1$1"; }

@@ -14,7 +14,7 @@ at `/admin`; ordinary users never see any of the pages below.
 
 | Where | How |
 |---|---|
-| Local test machine | `./scripts/bootstrap.sh && docker compose up -d`, then <https://localhost:8443/> |
+| Local test machine | Start Traefik first (`cd ../traefik && docker compose up -d`), then `./scripts/bootstrap.sh && docker compose up -d`. Access via the hostname in `MAIL_HOSTNAME`. |
 | Production VPS | [DEPLOY.md](DEPLOY.md) — preflight, certbot, nginx vhost, firewall, fail2ban |
 
 `bootstrap.sh` is idempotent: it creates `.env` and `mailu.env` from the
@@ -158,7 +158,7 @@ docker compose logs -f smtp
 
 Other knobs in `mailu.env`, applied with `docker compose up -d`:
 
-- `MESSAGE_SIZE_LIMIT` — must be ≤ nginx `client_max_body_size` in the vhost
+- `MESSAGE_SIZE_LIMIT` — Traefik has no body-size cap by default; set this freely
 - `DEFAULT_QUOTA`, `DEFAULT_SPAM_THRESHOLD`
 - `AUTH_RATELIMIT_IP`, `AUTH_RATELIMIT_USER` — brute-force limits
 - `RECIPIENT_DELIMITER=+` — enables `user+tag@domain`

@@ -15,7 +15,7 @@ Namecheap, and mail from a host without it is widely rejected.
 nc -zv gmail-smtp-in.l.google.com 25     # must connect
 dig +short mail.example.com              # must return the VPS public IP
 dig +short -x <VPS_PUBLIC_IP>            # must return mail.example.com
-ss -lntp | grep -E ':(25|465|587|993|4190|8008|8443)\b'   # must be empty
+ss -lntp | grep -E ':(25|465|587|993|4190)\b'   # must be empty
 ```
 
 Then check the host can actually carry the stack:
@@ -42,6 +42,7 @@ Edit `.env` for production. The values differ from the local test defaults:
 
 ```ini
 MAILU_DATA_ROOT=/srv/mailu
+MAIL_HOSTNAME=mail.example.com
 BIND_ADDRESS4=<VPS_PUBLIC_IP>
 SMTP_PORT=25
 SUBMISSIONS_PORT=465
@@ -60,7 +61,8 @@ WEBSITE=https://mail.example.com
 INITIAL_ADMIN_DOMAIN=example.com
 INITIAL_ADMIN_PW=<strong password, change after first login>
 REAL_IP_HEADER=X-Forwarded-For
-REAL_IP_FROM=192.168.203.0/24        # must equal SUBNET in .env
+REAL_IP_FROM=172.0.0.0/8             # must match the `proxy` Docker network CIDR
+                                     # verify: docker network inspect proxy | grep Subnet
 SESSION_COOKIE_SECURE=True
 ```
 
@@ -70,9 +72,13 @@ banning.
 
 ## 3. Certificate
 
-nginx owns 80/443, so Mailu cannot run its own Let's Encrypt client. Host
-certbot issues the certificate and a deploy hook copies it into the stack, which
-also covers the SMTP and IMAP ports.
+Traefik automatically provisions and renews the TLS certificate for the web UI
+(`mail.example.com`) via Let's Encrypt — no manual certbot step needed for that.
+
+The mail protocol ports (25, 465, 587, 993) bypass Traefik entirely and are
+terminated by Mailu's `front` container, which needs its own certificate.
+`bootstrap.sh` generates a self-signed one for local testing. For production,
+install certbot and a deploy hook that copies the renewed cert into the data dir:
 
 ```bash
 certbot certonly --webroot -w /var/www/certbot -d mail.example.com
@@ -90,17 +96,20 @@ automatically. Verify renewal works before relying on it:
 certbot renew --dry-run
 ```
 
-## 4. nginx vhost
+## 4. Traefik
+
+Traefik (running separately under `traefik/`) handles HTTPS for the web UI.
+Make sure Traefik is up and the `proxy` Docker network exists before starting
+the mail stack:
 
 ```bash
-cp ops/nginx/mail.vhost.conf.example /etc/nginx/sites-available/mail.conf
-# replace mail.example.com throughout
-ln -s /etc/nginx/sites-available/mail.conf /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
+cd ../traefik && docker compose up -d
+docker network inspect proxy   # note the Subnet — set REAL_IP_FROM to it in mailu.env
+cd ../mail-server
 ```
 
-`client_max_body_size` in the vhost must be at least `MESSAGE_SIZE_LIMIT` from
-`mailu.env`, otherwise large attachments fail to upload.
+No nginx vhost is needed. Traefik discovers the `front` container automatically
+via Docker labels and routes `mail.example.com` to it.
 
 ## 5. Start
 
@@ -111,10 +120,11 @@ docker compose ps        # every service should report healthy
 
 ## 6. Firewall
 
-Only the mail protocols are public. The web UI ports are already bound to
-loopback and must never be exposed.
+Only the mail protocols are public. The web UI is served by Traefik on the
+standard 80/443 ports — no extra rules needed for it.
 
 ```bash
+ufw allow 80/tcp && ufw allow 443/tcp    # Traefik (if not already open)
 ufw allow 25/tcp && ufw allow 465/tcp && ufw allow 587/tcp
 ufw allow 993/tcp && ufw allow 4190/tcp
 ```
@@ -227,7 +237,7 @@ docker compose pull && docker compose up -d
 | "Invalid email address" at login | Special-use TLD (`.test`, `.local`); Mailu's validator rejects them |
 | Rate limits ban the wrong client | `REAL_IP_HEADER` set without a correct `REAL_IP_FROM` |
 | Odd errors everywhere after setup | No mailbox or alias matching `POSTMASTER` |
-| Attachments fail to upload | nginx `client_max_body_size` below `MESSAGE_SIZE_LIMIT` |
+| Attachments fail to upload | Traefik has no body limit by default; check `MESSAGE_SIZE_LIMIT` in `mailu.env` |
 
 ```bash
 docker compose logs -f smtp    # delivery problems
