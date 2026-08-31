@@ -33,17 +33,6 @@ services:
       default:
         ipv4_address: ${RESOLVER_IP}
 
-  redis:
-    image: redis:alpine
-    restart: unless-stopped
-    logging: *mailu-logging
-    volumes:
-      - "${MAILU_DATA_ROOT}/redis:/data"
-    dns:
-      - ${RESOLVER_IP}
-    depends_on:
-      - resolver
-
   front:
     <<: *mailu-common
     image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}nginx:${MAILU_VERSION}
@@ -71,9 +60,11 @@ services:
     volumes:
       - "${MAILU_DATA_ROOT}/data:/data"
       - "${MAILU_DATA_ROOT}/dkim:/dkim"
+    networks:
+      - default
+      - bcs-net
     depends_on:
       - resolver
-      - redis
 
   imap:
     <<: *mailu-common
@@ -113,10 +104,10 @@ services:
       - default
       - oletools
       - clamav
+      - bcs-net
     depends_on:
       - resolver
       - front
-      - redis
 
   # --- Optional: webmail ------------------------------------------------------
   webmail:
@@ -210,3 +201,5 @@ networks:
   oletools:
     driver: bridge
     internal: true
+  bcs-net:
+    external: true
