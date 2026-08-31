@@ -1,0 +1,37 @@
+# Mailu jails. Install to /etc/fail2ban/jail.d/mailu.local on the VPS.
+#
+# Both jails read the `front` container's journal, so the stack must be started
+# with the journald overlay:
+#   docker compose -f docker-compose.yml -f ops/fail2ban/compose.journald.yml up -d
+#
+# Mailu already rate-limits auth in the application (AUTH_RATELIMIT_IP). These
+# jails add a kernel-level block so repeat offenders stop consuming TLS
+# handshakes and worker processes at all.
+
+[DEFAULT]
+# Never ban ourselves. The Mailu SUBNET must be here: the host nginx reaches the
+# front container from inside it, and Docker's userland proxy rewrites loopback
+# source addresses to the bridge gateway.
+ignoreip  = 127.0.0.1/8 ::1 192.168.203.0/24
+banaction = nftables-multiport
+backend   = systemd
+
+[mailu-auth]
+enabled      = true
+filter       = mailu-auth
+journalmatch = CONTAINER_TAG=mailu-front
+port         = 25,110,143,465,587,993,995,4190
+maxretry     = 5
+findtime     = 600
+bantime      = 3600
+
+[mailu-web]
+enabled      = true
+filter       = mailu-web
+journalmatch = CONTAINER_TAG=mailu-front
+port         = 80,443
+# Higher than the mail jail: a browser can legitimately retry a few times, and
+# each page load is one request rather than one connection.
+maxretry     = 10
+findtime     = 600
+bantime      = 3600

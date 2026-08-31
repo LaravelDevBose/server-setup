@@ -1,0 +1,212 @@
+# Multi-domain Mailu stack.
+# Optional services are gated by COMPOSE_PROFILES in .env.
+# All persistent state is a host bind mount under ${MAILU_DATA_ROOT}.
+
+x-mailu-logging: &mailu-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-mailu-common: &mailu-common
+  restart: unless-stopped
+  env_file: mailu.env
+  logging: *mailu-logging
+  # SUBNET lives in .env so compose and the containers can't drift apart.
+  environment:
+    SUBNET: ${SUBNET}
+  dns:
+    - ${RESOLVER_IP}
+  depends_on:
+    - resolver
+
+services:
+
+  resolver:
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}unbound:${MAILU_VERSION}
+    restart: unless-stopped
+    env_file: mailu.env
+    logging: *mailu-logging
+    environment:
+      SUBNET: ${SUBNET}
+    networks:
+      default:
+        ipv4_address: ${RESOLVER_IP}
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    logging: *mailu-logging
+    volumes:
+      - "${MAILU_DATA_ROOT}/redis:/data"
+    dns:
+      - ${RESOLVER_IP}
+    depends_on:
+      - resolver
+
+  front:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}nginx:${MAILU_VERSION}
+    ports:
+      # Web UI: loopback only — host nginx reverse-proxies to it.
+      - "127.0.0.1:${FRONT_HTTP_PORT}:80"
+      - "127.0.0.1:${FRONT_HTTPS_PORT}:443"
+      # Mail protocols: published on the public bind address.
+      - "${BIND_ADDRESS4}:${SMTP_PORT}:25"
+      - "${BIND_ADDRESS4}:${SUBMISSIONS_PORT}:465"
+      - "${BIND_ADDRESS4}:${SUBMISSION_PORT}:587"
+      - "${BIND_ADDRESS4}:${IMAPS_PORT}:993"
+      - "${BIND_ADDRESS4}:${SIEVE_PORT}:4190"
+    volumes:
+      - "${MAILU_DATA_ROOT}/certs:/certs"
+      - "${MAILU_DATA_ROOT}/overrides/nginx:/overrides:ro"
+    networks:
+      - default
+      - webmail
+      - radicale
+
+  admin:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}admin:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/data:/data"
+      - "${MAILU_DATA_ROOT}/dkim:/dkim"
+    depends_on:
+      - resolver
+      - redis
+
+  imap:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}dovecot:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/mail:/mail"
+      - "${MAILU_DATA_ROOT}/overrides/dovecot:/overrides:ro"
+    depends_on:
+      - resolver
+      - front
+
+  smtp:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}postfix:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/mailqueue:/queue"
+      - "${MAILU_DATA_ROOT}/overrides/postfix:/overrides:ro"
+    depends_on:
+      - resolver
+      - front
+
+  oletools:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}oletools:${MAILU_VERSION}
+    hostname: oletools
+    networks:
+      - oletools
+
+  antispam:
+    <<: *mailu-common
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}rspamd:${MAILU_VERSION}
+    hostname: antispam
+    volumes:
+      - "${MAILU_DATA_ROOT}/filter:/var/lib/rspamd"
+      - "${MAILU_DATA_ROOT}/overrides/rspamd:/overrides:ro"
+    networks:
+      - default
+      - oletools
+      - clamav
+    depends_on:
+      - resolver
+      - front
+      - redis
+
+  # --- Optional: webmail ------------------------------------------------------
+  webmail:
+    <<: *mailu-common
+    profiles: ["webmail"]
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}webmail:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/webmail:/data"
+      - "${MAILU_DATA_ROOT}/overrides/roundcube:/overrides:ro"
+    networks:
+      - webmail
+    depends_on:
+      - resolver
+      - front
+
+  # --- Optional: CalDAV/CardDAV ----------------------------------------------
+  webdav:
+    <<: *mailu-common
+    profiles: ["webdav"]
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}radicale:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/dav:/data"
+    networks:
+      - radicale
+
+  # --- Optional: pull mail from external accounts -----------------------------
+  fetchmail:
+    <<: *mailu-common
+    profiles: ["fetchmail"]
+    image: ${DOCKER_ORG:-ghcr.io/mailu}/${DOCKER_PREFIX:-}fetchmail:${MAILU_VERSION}
+    volumes:
+      - "${MAILU_DATA_ROOT}/data/fetchmail:/data"
+    depends_on:
+      - resolver
+      - admin
+      - smtp
+      - imap
+
+  # --- Optional: antivirus ----------------------------------------------------
+  # Also set ANTIVIRUS=clamav in mailu.env when enabling this profile.
+  antivirus:
+    profiles: ["antivirus"]
+    image: clamav/clamav-debian:1.4
+    restart: unless-stopped
+    logging: *mailu-logging
+    volumes:
+      - "${MAILU_DATA_ROOT}/clamav:/var/lib/clamav"
+    networks:
+      - clamav
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 `cat /tmp/clamd.pid` && kill -0 `cat /tmp/freshclam.pid`"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # --- Optional: nightly encrypted backups ------------------------------------
+  backup:
+    profiles: ["backup"]
+    build: ./ops/backup
+    image: mail-server/backup:local
+    restart: unless-stopped
+    logging: *mailu-logging
+    environment:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      BACKUP_CRON: ${BACKUP_CRON}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY}
+      TZ: ${TZ}
+    volumes:
+      - "${MAILU_DATA_ROOT}:/srv/mailu:ro"
+      - "${MAILU_DATA_ROOT}/backups:/backups"
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET}
+  webmail:
+    driver: bridge
+  radicale:
+    driver: bridge
+  clamav:
+    driver: bridge
+  oletools:
+    driver: bridge
+    internal: true

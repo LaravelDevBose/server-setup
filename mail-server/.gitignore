@@ -1,0 +1,20 @@
+# Live config (contain secrets) — never commit
+.env
+mailu.env
+docker-compose.override.yml
+# Hand-made copies of the above still hold SECRET_KEY/API_TOKEN.
+*.bak
+*.orig
+*.save
+
+# Runtime state
+data/
+!data/.gitkeep
+
+# Certificates & keys
+*.pem
+*.key
+*.crt
+
+# OS noise
+.DS_Store
