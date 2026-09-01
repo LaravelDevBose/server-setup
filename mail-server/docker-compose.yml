@@ -65,6 +65,8 @@ services:
     volumes:
       - "${MAILU_DATA_ROOT}/data:/data"
       - "${MAILU_DATA_ROOT}/dkim:/dkim"
+      - "./overrides/sidebar.html:/app/mailu/ui/templates/sidebar.html:ro"
+      - "./overrides/base.html:/app/mailu/ui/templates/base.html:ro"
     networks:
       - default
       - bcs-net
