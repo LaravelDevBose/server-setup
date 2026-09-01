@@ -67,6 +67,8 @@ services:
       - "${MAILU_DATA_ROOT}/dkim:/dkim"
       - "./overrides/sidebar.html:/app/mailu/ui/templates/sidebar.html:ro"
       - "./overrides/base.html:/app/mailu/ui/templates/base.html:ro"
+      - "./overrides/base_sso.html:/app/mailu/sso/templates/base_sso.html:ro"
+      - "./overrides/sidebar_sso.html:/app/mailu/sso/templates/sidebar_sso.html:ro"
     networks:
       - default
       - bcs-net
