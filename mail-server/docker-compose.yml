@@ -54,7 +54,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.mailu.rule=Host(`${MAIL_HOSTNAME}`)"
+      - "traefik.http.routers.mailu.rule=Host(`${MAIL_HOSTNAME}`) || Host(`webmail.ekrishibd.com`)"
       - "traefik.http.routers.mailu.entrypoints=websecure"
       - "traefik.http.routers.mailu.tls.certresolver=myresolver"
       - "traefik.http.services.mailu.loadbalancer.server.port=80"
