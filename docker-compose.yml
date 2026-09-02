@@ -1,36 +1,35 @@
 services:
-  docker-proxy:
-    image: nginx:alpine
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./nginx-docker-proxy.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - proxy
-
   traefik:
     image: traefik:v3.3
     container_name: traefik
     restart: always
+    environment:
+      - DOCKER_API_VERSION=1.40
     security_opt:
       - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./acme.json:/acme.json
     networks:
       - proxy
-    depends_on:
-      - docker-proxy
     command:
+      # Entrypoints
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+
+      # Redirect HTTP to HTTPS
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # Docker provider configuration
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.endpoint=tcp://docker-proxy:2375"
+      - "--providers.docker.network=proxy" # <--- ADDED: Tells Traefik to route over 'proxy' network
+
+      # Let's Encrypt SSL resolver
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
       - "--certificatesresolvers.myresolver.acme.email=brainchildsoft@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/acme.json"
