@@ -35,12 +35,11 @@ services:
     command:
       - --docker_only=true
       - --housekeeping_interval=10s
-      - --disable_metrics=disk,diskIO
+      - --disable_metrics=disk,diskIO,referenced_memory,cpu_topology
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
       - bcs-net
