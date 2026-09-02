@@ -32,21 +32,20 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: monitoring-cadvisor
+    restart: unless-stopped
     privileged: true
     devices:
-      - /dev/kmsg
-    command:
-      - --docker_only=true
-      - --housekeeping_interval=10s
-      - --disable_metrics=disk,diskIO,referenced_memory,cpu_topology
+      - /dev/kmsg:/dev/kmsg
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    networks:
-      - bcs-net
-    restart: unless-stopped
+    command:
+      - '--docker_only=true'
+      - '--housekeeping_interval=10s'
+      - '--disable_metrics=disk,diskIO'
 
   grafana:
     image: grafana/grafana:11.1.0
