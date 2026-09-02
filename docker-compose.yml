@@ -1,6 +1,7 @@
 services:
   prometheus:
     image: prom/prometheus:v2.53.0
+    container_name: monitoring-prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -14,6 +15,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:v1.8.1
+    container_name: monitoring-node-exporter
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -29,6 +31,7 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: monitoring-cadvisor
     privileged: true
     devices:
       - /dev/kmsg
@@ -47,11 +50,12 @@ services:
 
   grafana:
     image: grafana/grafana:11.1.0
+    container_name: monitoring-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: ${GRAFANA_DOMAIN}
+      GF_SERVER_ROOT_URL: "https://${GRAFANA_DOMAIN}"
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -59,6 +63,7 @@ services:
       - bcs-net
     labels:
       - traefik.enable=true
+      - traefik.docker.network=proxy
       - traefik.http.routers.grafana.rule=Host(`${GRAFANA_DOMAIN}`)
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls.certresolver=myresolver
