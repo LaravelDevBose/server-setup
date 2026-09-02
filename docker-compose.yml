@@ -18,6 +18,7 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - /run/udev:/run/udev:ro
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
@@ -31,6 +32,9 @@ services:
     privileged: true
     devices:
       - /dev/kmsg
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=10s
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
