@@ -226,4 +226,4 @@ Set `APP_NETWORK` + `MYSQL_HOST` / `REDIS_HOST` / `NGINX_HOST` (container names)
 - Grafana dashboards: Redis `763`, MySQL `7362`, Nginx `12708`.
 
 ### Traefik metrics (prod, all Laravel projects)
-Traefik flags (see `traefik/docker-compose.yml`) expose Prometheus metrics on internal `:8082` and access logs on stdout. Set `APP_NETWORK=proxy` and `TRAEFIK_HOST=traefik` in `agent/.env`. Dashboard ID `17346`. Per-project nginx needs no changes.
+Traefik flags (see `traefik/docker-compose.yml`) expose Prometheus metrics on internal `:8082` and access logs on stdout. Set `APP_NETWORK=bcs-net` and `TRAEFIK_HOST=traefik` in `agent/.env`. Dashboard ID `17346`. Per-project nginx needs no changes.
