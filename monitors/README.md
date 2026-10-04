@@ -215,3 +215,12 @@ Monitor host runs this stack. Each prod host runs `agent/` (node-exporter, cAdvi
 
 Local monitor host is covered by the main stack (`host="monitor"`).
 Laravel in Docker: set `LOG_CHANNEL=stderr` to get logs via docker job too.
+
+Prod logs covered: Laravel (`storage/logs`), Docker containers, and everything `/var/log/**/*.log` (nginx, mysql, redis, syslog...). Filter e.g. `{host="prod-1", filename=~".*nginx.*"}`.
+Not covered: DB/Redis/Nginx *metrics* (need mysqld/redis/nginx exporters).
+
+### MySQL / Redis / Nginx metrics (prod, all in Docker)
+Set `APP_NETWORK` + `MYSQL_HOST` / `REDIS_HOST` / `NGINX_HOST` (container names) in `agent/.env`, rerun `./setup.sh`.
+- MySQL user (run once): `CREATE USER 'exporter'@'%' IDENTIFIED BY 'pw' WITH MAX_USER_CONNECTIONS 3; GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';`
+- Nginx: add inside `server {}` of the config the exporter reaches: `location /stub_status { stub_status; allow 172.16.0.0/12; deny all; }` then reload nginx.
+- Grafana dashboards: Redis `763`, MySQL `7362`, Nginx `12708`.

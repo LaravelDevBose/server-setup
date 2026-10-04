@@ -4,14 +4,14 @@ global:
   external_labels:
     host: @HOST_NAME@
 
-scrape_configs:
-  - job_name: node-exporter
-    static_configs: [{targets: ['node-exporter:9100']}]
-  - job_name: cadvisor
-    static_configs: [{targets: ['cadvisor:8080']}]
-
 remote_write:
   - url: @INGEST_URL@/api/v1/write
     basic_auth:
       username: @INGEST_USER@
       password_file: /etc/prometheus/ingest_password
+
+scrape_configs:
+  - job_name: node-exporter
+    static_configs: [{targets: ['node-exporter:9100']}]
+  - job_name: cadvisor
+    static_configs: [{targets: ['cadvisor:8080']}]

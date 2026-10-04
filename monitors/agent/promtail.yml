@@ -24,6 +24,12 @@ scrape_configs:
         target_label: service
       - target_label: host
         replacement: ${HOST_NAME}
+    pipeline_stages:
+      # Laravel stderr logs: "[date] production.ERROR: ..." -> level label (other lines untouched)
+      - regex:
+          expression: '^\[[^\]]+\] \w+\.(?P<level>[A-Z]+):'
+      - labels:
+          level:
 
   # Laravel file logs (storage/logs/*.log), stack traces joined into one entry
   - job_name: laravel
@@ -41,4 +47,4 @@ scrape_configs:
   - job_name: varlog
     static_configs:
       - targets: [localhost]
-        labels: {job: varlog, host: "${HOST_NAME}", __path__: /var/log/*log}
+        labels: {job: varlog, host: "${HOST_NAME}", __path__: /var/log/**/*.log}
