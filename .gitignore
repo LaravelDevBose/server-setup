@@ -23,3 +23,5 @@ data/
 .idea/*ingest_password
 monitors/agent/prometheus-agent.yml
 monitors/agent/mysqld.cnf
+*/*/.env.production
+*/.env.production
