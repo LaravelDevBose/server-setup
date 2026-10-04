@@ -1,0 +1,44 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /positions/positions.yaml
+
+clients:
+  - url: ${INGEST_URL}/loki/api/v1/push
+    basic_auth:
+      username: ${INGEST_USER}
+      password: ${INGEST_PASSWORD}
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: service
+      - target_label: host
+        replacement: ${HOST_NAME}
+
+  # Laravel file logs (storage/logs/*.log), stack traces joined into one entry
+  - job_name: laravel
+    static_configs:
+      - targets: [localhost]
+        labels: {job: laravel, host: "${HOST_NAME}", __path__: /laravel/**/storage/logs/*.log}
+    pipeline_stages:
+      - multiline:
+          firstline: '^\[\d{4}-\d{2}-\d{2}'
+      - regex:
+          expression: '^\[[^\]]+\] \w+\.(?P<level>\w+):'
+      - labels:
+          level:
+
+  - job_name: varlog
+    static_configs:
+      - targets: [localhost]
+        labels: {job: varlog, host: "${HOST_NAME}", __path__: /var/log/*log}

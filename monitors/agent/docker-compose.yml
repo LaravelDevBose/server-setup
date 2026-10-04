@@ -1,0 +1,50 @@
+# Run on each PROD host. Pushes metrics + logs to the monitor host. No ports opened.
+# Setup: cp .env.example .env ; edit .env ; ./setup.sh
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    pid: host
+    volumes: ['/proc:/host/proc:ro', '/sys:/host/sys:ro', '/:/rootfs:ro']
+    command: [--path.procfs=/host/proc, --path.sysfs=/host/sys, --path.rootfs=/rootfs]
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    devices: ['/dev/kmsg:/dev/kmsg']
+    volumes: ['/:/rootfs:ro', '/var/run:/var/run:rw', '/sys:/sys:ro', '/var/lib/docker:/var/lib/docker:ro']
+    command: ['--docker_only=true', '--housekeeping_interval=10s', '--disable_metrics=disk,diskIO']
+    restart: unless-stopped
+
+  prometheus-agent:
+    image: prom/prometheus:v2.53.0
+    command:
+      - --enable-feature=agent
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.agent.path=/data
+    volumes:
+      - ./prometheus-agent.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ingest_password:/etc/prometheus/ingest_password:ro
+      - agent_data:/data
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: [-config.file=/etc/promtail/config.yml, -config.expand-env=true]
+    environment:
+      HOST_NAME: ${HOST_NAME}
+      INGEST_URL: ${INGEST_URL}
+      INGEST_USER: ${INGEST_USER}
+      INGEST_PASSWORD: ${INGEST_PASSWORD}
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${LARAVEL_ROOT:-/var/www}:/laravel:ro
+      - ./promtail.yml:/etc/promtail/config.yml:ro
+      - promtail_positions:/positions
+    restart: unless-stopped
+
+volumes:
+  agent_data:
+  promtail_positions:

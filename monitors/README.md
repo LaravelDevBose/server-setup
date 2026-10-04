@@ -199,3 +199,19 @@ monitoring/
 | `grafana_data` | Dashboards, users, data source config |
 
 Volumes survive `docker compose down`. Use `docker volume ls` to inspect.
+
+---
+
+## Monitoring prod hosts (Laravel servers)
+
+Monitor host runs this stack. Each prod host runs `agent/` (node-exporter, cAdvisor, Prometheus agent, Promtail) and **pushes** metrics + logs out over HTTPS. No ports opened on prod.
+
+1. Monitor host `.env`: set `INGEST_DOMAIN` (DNS → monitor host) and `INGEST_BASICAUTH` (`htpasswd -nb agent 'pass'`, single-quoted). `docker compose up -d`.
+2. Prod host: copy `agent/` over, `cp .env.example .env`, edit `.env`, run `./setup.sh`.
+3. Grafana auto-has Prometheus + Loki datasources. Metrics label `host`; logs labels `host`, `container`, `job=laravel`, `level`.
+   - Logs: `{host="prod-1", job="laravel", level="ERROR"}`
+   - CPU: `100 - avg(rate(node_cpu_seconds_total{mode="idle",host="prod-1"}[5m]))*100`
+4. Dashboards 1860 (node) / 14282 (cAdvisor) filter by `host`.
+
+Local monitor host is covered by the main stack (`host="monitor"`).
+Laravel in Docker: set `LOG_CHANNEL=stderr` to get logs via docker job too.

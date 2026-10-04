@@ -9,8 +9,20 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=15d
+      - --web.enable-remote-write-receiver
     networks:
+      - proxy
       - bcs-net
+    labels:
+      # Prod agents push metrics here: https://INGEST_DOMAIN/api/v1/write
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.middlewares.ingest-auth.basicauth.users=${INGEST_BASICAUTH}
+      - traefik.http.routers.prom-ingest.rule=Host(`${INGEST_DOMAIN}`) && PathPrefix(`/api/v1/write`)
+      - traefik.http.routers.prom-ingest.entrypoints=websecure
+      - traefik.http.routers.prom-ingest.tls.certresolver=myresolver
+      - traefik.http.routers.prom-ingest.middlewares=ingest-auth
+      - traefik.http.services.prom-ingest.loadbalancer.server.port=9090
     restart: unless-stopped
 
   node-exporter:
@@ -21,6 +33,7 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
       - /run/udev:/run/udev:ro
+    pid: host
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
@@ -54,9 +67,20 @@ services:
     container_name: monitoring-loki
     volumes:
       - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
+      - ./loki-config.yml:/etc/loki/config.yml:ro
+    command: -config.file=/etc/loki/config.yml
     networks:
+      - proxy
       - bcs-net
+    labels:
+      # Prod agents push logs here: https://INGEST_DOMAIN/loki/api/v1/push
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.loki-ingest.rule=Host(`${INGEST_DOMAIN}`) && PathPrefix(`/loki/api/v1/push`)
+      - traefik.http.routers.loki-ingest.entrypoints=websecure
+      - traefik.http.routers.loki-ingest.tls.certresolver=myresolver
+      - traefik.http.routers.loki-ingest.middlewares=ingest-auth
+      - traefik.http.services.loki-ingest.loadbalancer.server.port=3100
     restart: unless-stopped
 
   promtail:
@@ -67,6 +91,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - promtail_positions:/positions
     command: -config.file=/etc/promtail/config.yml
     networks:
       - bcs-net
@@ -82,6 +107,7 @@ services:
       GF_SERVER_ROOT_URL: "https://${GRAFANA_DOMAIN}"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - proxy
       - bcs-net
@@ -104,3 +130,4 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  promtail_positions:
