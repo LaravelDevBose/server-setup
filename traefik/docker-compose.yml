@@ -24,6 +24,12 @@ services:
       - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
       - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
 
+      # Metrics (internal only, not published to host) + access logs to stdout
+      - "--entrypoints.metrics.address=:8082"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entryPoint=metrics"
+      - "--accesslog=true"
+
       # Docker provider configuration
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"

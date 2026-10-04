@@ -12,9 +12,10 @@ sed -e "s|@HOST_NAME@|$HOST_NAME|g" -e "s|@INGEST_URL@|${INGEST_URL%/}|g" -e "s|
 printf '%s' "$INGEST_PASSWORD" > ingest_password
 profiles=()
 add_job() { printf '  - job_name: %s\n    static_configs: [{targets: [%s]}]\n' "$1" "'$2'" >> prometheus-agent.yml; }
-if [ -n "${REDIS_HOST:-}" ] || [ -n "${MYSQL_HOST:-}" ] || [ -n "${NGINX_HOST:-}" ]; then
+if [ -n "${REDIS_HOST:-}" ] || [ -n "${MYSQL_HOST:-}" ] || [ -n "${NGINX_HOST:-}" ] || [ -n "${TRAEFIK_HOST:-}" ]; then
   [ -n "${APP_NETWORK:-}" ] || { echo "APP_NETWORK required when *_HOST set"; exit 1; }
 fi
+if [ -n "${TRAEFIK_HOST:-}" ]; then add_job traefik "$TRAEFIK_HOST:8082"; fi
 if [ -n "${REDIS_HOST:-}" ]; then profiles+=(redis); add_job redis redis-exporter:9121; fi
 if [ -n "${NGINX_HOST:-}" ]; then profiles+=(nginx); add_job nginx nginx-exporter:9113; fi
 if [ -n "${MYSQL_HOST:-}" ]; then

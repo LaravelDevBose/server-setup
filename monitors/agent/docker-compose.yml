@@ -51,6 +51,7 @@ services:
       - ./prometheus-agent.yml:/etc/prometheus/prometheus.yml:ro
       - ./ingest_password:/etc/prometheus/ingest_password:ro
       - agent_data:/data
+    networks: [default, app]
     restart: unless-stopped
 
   promtail:
