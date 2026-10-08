@@ -9,3 +9,11 @@
 *.sublime-workspace
 /nbproject.idea/
 acme.json
+
+# Secrets / rendered agent files — never commit
+.env
+.env.*
+!.env.example
+monitor-agents/prometheus-agent.yml
+monitor-agents/ingest_password
+monitor-agents/mysqld.cnf

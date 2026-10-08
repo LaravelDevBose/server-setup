@@ -9,10 +9,10 @@ services:
     restart: unless-stopped
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.6
     privileged: true
     devices: ['/dev/kmsg:/dev/kmsg']
-    volumes: ['/:/rootfs:ro', '/var/run:/var/run:rw', '/sys:/sys:ro', '/var/lib/docker:/var/lib/docker:ro']
+    volumes: ['/:/rootfs:ro', '/var/run:/var/run:ro', '/sys:/sys:ro', '/var/lib/docker:/var/lib/docker:ro']
     command: ['--docker_only=true', '--housekeeping_interval=10s', '--disable_metrics=disk,diskIO']
     restart: unless-stopped
 

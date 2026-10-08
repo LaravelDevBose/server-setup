@@ -20,7 +20,9 @@ if [ -n "${REDIS_HOST:-}" ]; then profiles+=(redis); add_job redis redis-exporte
 if [ -n "${NGINX_HOST:-}" ]; then profiles+=(nginx); add_job nginx nginx-exporter:9113; fi
 if [ -n "${MYSQL_HOST:-}" ]; then
   profiles+=(mysql); add_job mysql mysqld-exporter:9104
-  printf '[client]\nuser=%s\npassword=%s\nhost=%s\n' "${MYSQL_EXPORTER_USER:-exporter}" "${MYSQL_EXPORTER_PASSWORD:-}" "$MYSQL_HOST" > mysqld.cnf
+  # quoted + escaped so $ # ! ' in the password survive the option-file parser
+  pw=${MYSQL_EXPORTER_PASSWORD:-}; pw=${pw//\\/\\\\}; pw=${pw//\"/\\\"}
+  printf '[client]\nuser=%s\npassword="%s"\nhost=%s\n' "${MYSQL_EXPORTER_USER:-exporter}" "$pw" "$MYSQL_HOST" > mysqld.cnf
   chmod 644 mysqld.cnf  # exporter runs as nobody
 fi
 export COMPOSE_PROFILES=$(IFS=,; echo "${profiles[*]:-}")
