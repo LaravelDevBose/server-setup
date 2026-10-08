@@ -43,6 +43,7 @@ services:
 
   prometheus-agent:
     image: prom/prometheus:v2.53.0
+    user: root  # fresh volume is root-owned; image default user cannot write /data
     command:
       - --enable-feature=agent
       - --config.file=/etc/prometheus/prometheus.yml
