@@ -25,22 +25,23 @@ scrape_configs:
       - target_label: host
         replacement: ${HOST_NAME}
     pipeline_stages:
-      # Laravel stderr logs: "[date] production.ERROR: ..." -> level label (other lines untouched)
-      - regex:
-          expression: '^\[[^\]]+\] \w+\.(?P<level>[A-Z]+):'
+      # Laravel JSON lines (Monolog level_name) -> level label. Non-JSON / nginx lines pass untouched.
+      # Other keys (status, context.process, ...) stay in the line: query with `| json`.
+      - json:
+          expressions:
+            level: level_name
       - labels:
           level:
 
-  # Laravel file logs (storage/logs/*.log), stack traces joined into one entry
+  # Laravel JSON file logs (storage/logs/*.log), one JSON object per line
   - job_name: laravel
     static_configs:
       - targets: [localhost]
         labels: {job: laravel, host: "${HOST_NAME}", __path__: /laravel/**/storage/logs/*.log}
     pipeline_stages:
-      - multiline:
-          firstline: '^\[\d{4}-\d{2}-\d{2}'
-      - regex:
-          expression: '^\[[^\]]+\] \w+\.(?P<level>\w+):'
+      - json:
+          expressions:
+            level: level_name
       - labels:
           level:
 

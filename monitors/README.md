@@ -210,6 +210,9 @@ Monitor host runs this stack. Each prod host runs `agent/` (node-exporter, cAdvi
 2. Prod host: copy `agent/` over, `cp .env.example .env`, edit `.env`, run `./setup.sh`.
 3. Grafana auto-has Prometheus + Loki datasources. Metrics label `host`; logs labels `host`, `container`, `job=laravel`, `level`.
    - Logs: `{host="prod-1", job="laravel", level="ERROR"}`
+   - JSON keys (not labels, parse at query time): `{host="prod-1", service="nginx"} | json | status >= 500`
+   - Nested keys flatten with `_`: `{job="laravel"} | json | context_process="system"`
+   - nginx `host` field clashes with the `host` label, so it is `host_extracted` after `| json`
    - CPU: `100 - avg(rate(node_cpu_seconds_total{mode="idle",host="prod-1"}[5m]))*100`
 4. Dashboards 1860 (node) / 14282 (cAdvisor) filter by `host`.
 
