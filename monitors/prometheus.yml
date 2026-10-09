@@ -12,3 +12,8 @@ scrape_configs:
     static_configs:
       - targets: ['cadvisor:8080']
         labels: {host: monitor}
+
+  - job_name: prometheus
+    static_configs:
+      - targets: [ 'localhost:9090' ]
+        labels: { host: monitor }
