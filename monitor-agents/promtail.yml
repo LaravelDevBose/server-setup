@@ -25,11 +25,11 @@ scrape_configs:
       - target_label: host
         replacement: ${HOST_NAME}
     pipeline_stages:
-      # Laravel JSON lines (Monolog level_name) -> level label. Non-JSON / nginx lines pass untouched.
+      # Laravel JSON lines (Monolog level) -> level label. Non-JSON / nginx lines pass untouched.
       # Other keys (status, context.process, ...) stay in the line: query with `| json`.
       - json:
           expressions:
-            level: level_name
+            level: level
       - labels:
           level:
 
@@ -41,7 +41,7 @@ scrape_configs:
     pipeline_stages:
       - json:
           expressions:
-            level: level_name
+            level: level
       - labels:
           level:
 
