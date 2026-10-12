@@ -211,7 +211,18 @@ Monitor host runs this stack. Each prod host runs `agent/` (node-exporter, cAdvi
 3. Grafana auto-has Prometheus + Loki datasources. Metrics label `host`; logs labels `host`, `container`, `job=laravel`, `level`.
    - Logs: `{host="prod-1", job="laravel", level="ERROR"}`
    - JSON keys (not labels, parse at query time): `{host="prod-1", service="nginx"} | json | status >= 500`
-   - Nested keys flatten with `_`: `{job="laravel"} | json | context_process="system"`
+   - CloudBiz360's nginx (docker/nginx/*.conf) and Laravel app log (App\Utilities\Logger ->
+     App\Utilities\CloudBizJsonFormatter) share key names on purpose — same `| json` filter
+     works on both streams, and `request_id` joins one request's nginx line to its app line:
+     `{host="prod-1"} | json | request_id="8f3e1c2a-..."` — matches both `service="nginx"`
+     and `job="laravel"` lines for that one request.
+   - `channel`: Laravel's is the `Logger::PROCESS_*` value (`auth`/`payment`/`database`/...);
+     nginx has no such concept so it synthesizes `NGINX_{level}_{status}` instead — same key,
+     each side's own meaningful value: `{job="laravel"} | json | channel="payment"`.
+   - `uri`: present on every Laravel log line written during a request (auto-added by
+     `AssignRequestId` middleware), not just HTTP-framework ones: `{job="laravel"} | json | uri="/api/orders/999/pay"`.
+   - Context is no longer nested with a `context_` prefix for `process` — it's promoted to
+     the top-level `channel` field above instead (one less flatten to remember).
    - nginx `host` field clashes with the `host` label, so it is `host_extracted` after `| json`
    - CPU: `100 - avg(rate(node_cpu_seconds_total{mode="idle",host="prod-1"}[5m]))*100`
 4. Dashboards 1860 (node) / 14282 (cAdvisor) filter by `host`.

@@ -25,11 +25,15 @@ scrape_configs:
       - target_label: host
         replacement: ${HOST_NAME}
     pipeline_stages:
-      # Laravel JSON lines (Monolog level_name) -> level label. Non-JSON / nginx lines pass untouched.
-      # Other keys (status, context.process, ...) stay in the line: query with `| json`.
+      # CloudBiz360's nginx and Laravel app log both emit a top-level "level"
+      # key (INFO/WARNING/ERROR) by design - App\Utilities\CloudBizJsonFormatter
+      # on the app side, docker/nginx/*.conf's json_combined on the nginx side -
+      # so one shared stage labels both. Non-JSON lines pass untouched.
+      # Other shared keys (status, uri, channel, request_id, message, ...)
+      # stay in the line: query with `| json`.
       - json:
           expressions:
-            level: level_name
+            level: level
       - labels:
           level:
 
@@ -41,7 +45,7 @@ scrape_configs:
     pipeline_stages:
       - json:
           expressions:
-            level: level_name
+            level: level
       - labels:
           level:
 
