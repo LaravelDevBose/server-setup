@@ -29,8 +29,11 @@ services:
   mysqld-exporter:
     profiles: [mysql]
     image: prom/mysqld-exporter:v0.15.1
-    command: [--config.my-cnf=/cfg/mysqld.cnf]
-    volumes: ['./mysqld.cnf:/cfg/mysqld.cnf:ro']
+    environment:
+      - MYSQL_HOST
+      - MYSQL_EXPORTER_USER
+      - MYSQL_EXPORTER_PASSWORD
+      - DATA_SOURCE_NAME=${MYSQL_EXPORTER_USER}:${MYSQL_EXPORTER_PASSWORD}@(${MYSQL_HOST}:3306)/
     networks: [default, app]
     restart: unless-stopped
 
