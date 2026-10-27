@@ -20,7 +20,7 @@ services:
           - common-mysql
     # No ports section here! Ports 3306 are hidden from the internet.
     healthcheck:
-      test: ["CMD", "mysqladmin", "-u", "${MYSQL_EXPORTER_USER}", "-p${MYSQL_ROOT_PASSWORD}", "ping"]
+      test: ["CMD", "mysqladmin", "-u", "${MYSQL_ROOT_USER}", "-p${MYSQL_ROOT_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
